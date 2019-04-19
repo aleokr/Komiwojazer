@@ -234,9 +234,10 @@ def breedPopulation(matingpool, eliteSize):#rozmnażator według testowego cross
     for i in range(0,eliteSize):
         children.append(matingpool[i])
     
-    for i in range(0, length):
+    for i in range(0, length):#tu musi być już wybór mechanizmu (jakieś ify)
         child = breedNWOX(pool[i], pool[len(matingpool)-i-1])
-        children.append(child)
+        children.append(child[0])#żeby to zadziałało, c-o musi zwracać dwójkę dzieci
+        children.append(child[1])
     return children
 
 
@@ -254,24 +255,19 @@ def mutate(individual, mutationRate):#z tutoriala - tutaj polega na randomowej z
             individual[swapWith] = city1
     return individual
 
-def mutateRSM(parent1, parent2, whichWay): #zależnie od whichWay odpowiedni crossover 
-    rand1=int(random.random() * len(parent1))
-    rand2 =int(random.random() * len(parent1))
+
+def mutateRSM(individual):#individual - osobnik do mutacji
+    rand1=int(random.random() * len(individual))
+    rand2 =int(random.random() * len(individual))
     a=min(rand1, rand2)
     b=max(rand1,rand2)
     while a<b:
-        if whichWay==1:
-           breedNWOX(parent1, parent2) #?????
-        if whichWay==2:
-            breedCX(parent1,parent2)
-        if whichWay==3:
-            breedPMX(parent1,parent2)
-        if whichWay==4:
-            breedUMPX(parent1,parent2)
-        if whichWay==5:
-            breedOX(parent1,parent2)
-        a+=1
-        b-=1
+       tmp = individual[a];
+       individual[a] = individual[b]
+       individual[b] = tmp
+       a = a+1
+       b = b-1
+    return individual
 
 
 def mutatePopulation(population, mutationRate): #funkcja mutująca całą populację
@@ -287,7 +283,7 @@ def nextGeneration(currentGen, eliteSize, mutationRate): #wytworzenie nowej popu
     popRanked = rankRoutes(currentGen)
     selectionResults = selection(popRanked, eliteSize)
     matingpool = matingPool(currentGen, selectionResults)
-    children = breedPopulation(matingpool, eliteSize)
+    children = breedPopulation(matingpool, eliteSize) #tu trzeba podać, jakiego/jakich crossoverów ma używać
     nextGeneration = mutatePopulation(children, mutationRate)
     return nextGeneration
 
@@ -296,10 +292,10 @@ def geneticAlgorithm(population, popSize, eliteSize, mutationRate, generations):
     pop = initialPopulation(popSize, population)
     print("Initial distance: " + str(1 / rankRoutes(pop)[0][1]))
     
-    for i in range(0, generations):
+    for i in range(0, generations):#to trzeba wykonać dla wszystkich wybranych opcji; wszystkie opcje muszą mieć tę samą populację początkową
         pop = nextGeneration(pop, eliteSize, mutationRate)
     
-    print("Final distance: " + str(1 / rankRoutes(pop)[0][1]))
+    print("Final distance for crossover X and mutation Y: " + str(1 / rankRoutes(pop)[0][1]))#to dla wszystkich
     bestRouteIndex = rankRoutes(pop)[0][0]
     bestRoute = pop[bestRouteIndex]
     return bestRoute
