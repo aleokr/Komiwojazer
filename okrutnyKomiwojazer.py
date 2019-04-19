@@ -98,29 +98,40 @@ def matingPool(population, selectionResults):# to jest funkcja do ekstrakcji oso
 #Mechanizmy Cross-Over
 
 
-def breedNWOX(parent1, parent2): #to jest z tutoriala (chyba NWOX)
-    child = []
-    childP1 = []
-    childP2 = []
+def breedNWOX(parent1, parent2): #metoda poprawiona według artukułu
     
-    geneA = int(random.random() * len(parent1))
-    geneB = int(random.random() * len(parent1))
+    rand1=int(random.random() * len(parent1))
+    rand2 =int(random.random() * len(parent1))
+    a=min(rand1, rand2)
+    b=max(rand1,rand2)
     
-    startGene = min(geneA, geneB)
-    endGene = max(geneA, geneB)
+    child1 = [i for i in range(len(parent1)+b-a)]
+    child2 = [i for i in range(len(parent2)+b-a)]
+    child1[0] =parent1[0]
+    child2[0]=parent2[0]
+    
+    parent1Set = set()#zbiory rodziców z wylosowanego przedziału
+    parent2Set = set()
+    i=a
+    while i<b:
+        parent1Set.add(parent1[i])
+        parent2Set.add(parent2[i])
+        i+=1
 
-    for i in range(startGene, endGene):
-        childP1.append(parent1[i])
-        
-    childP2 = [item for item in parent2 if item not in childP1]
+    i=a#założenia metody
+    while i<b:
+        if (parent1[i] in parent2Set)!=True: 
+            child1[i] = parent1[i]
 
-    child = childP1 + childP2
-    return child
+        if (parent2[i] in parent1Set)!=True:
+            child2[i] = parent2[i]
+        i=i+1
 
+    return child1,child2
 
 def breedCX(parent1, parent2):#nietestowane
-    child1 = []
-    child2 = []
+    child1 = [i for i in range(len(parent1))]
+    child2 = [i for i in range(len(parent2))]
     child1[0] = parent1[0]
     child2[0] = parent2[0]
     i = 0
@@ -138,12 +149,12 @@ def breedCX(parent1, parent2):#nietestowane
         if gene == null :
             child2[child2.index(gene)] = parent1[child2.index(gene)]
 
-    return {child1,child2}
+    return child1,child2
 
 
 def breedPMX(parent1, parent2):
-    child1 = []
-    child2 = []
+    child1 = [i for i in range(len(parent1))]
+    child2 = [i for i in range(len(parent2))]
     child1[0] = parent1[0]
     child2[0] = parent2[0]
     position1 = [i+1 for i in range(len(parent1))]
@@ -165,7 +176,7 @@ def breedPMX(parent1, parent2):
         position2[tmp1]= position2[tmp2]
         position2[tmp2]= position2[tmp1]
 
-    return {child1,child2}
+    return child1,child2
 
 
 def breedUMPX(parent1, parent2):
@@ -180,7 +191,7 @@ def breedUMPX(parent1, parent2):
 
     for i in range(len(parent1)):
         q=int(random.random())
-        p=0.5 #?????????????????????
+        p=0.5 
         if q>=p:
             tmp1=child1[i]
             tmp2=child2[i]
@@ -193,19 +204,20 @@ def breedUMPX(parent1, parent2):
             position2[tmp1]= position2[tmp2]
             position2[tmp2]= position2[tmp1]
 
-    return {child1,child2}
+    return child1,child2
 
 
 
 def breedOX(parent1, parent2):
-    child1 = []
-    child2 = []
+    
     rand1=int(random.random() * len(parent1))
     rand2 =int(random.random() * len(parent1))
     a=min(rand1, rand2)
     b=max(rand1,rand2)
     j1=j2=k=b+1
 
+    child1 = [i for i in range(len(parent1))]
+    child2 = [i for i in range(len(parent2))]
     parent1Set = set()
     parent2Set = set()
     i=a
@@ -223,10 +235,11 @@ def breedOX(parent1, parent2):
             j2+=1
         k+=1
     
-    return{child1,child2}
+    return child1,child2
 
 
-def breedPopulation(matingpool, eliteSize):#rozmnażator według testowego cross-over
+def breedPopulation(matingpool, eliteSize,whichCrossover):#rozmnażator według testowego cross-over
+    #numery crossovery według kolejności: 1-NWOX 2-CX 3-PMX 4-UMPX 5-OX 
     children = []
     length = len(matingpool) - eliteSize
     pool = random.sample(matingpool, len(matingpool))
@@ -234,9 +247,18 @@ def breedPopulation(matingpool, eliteSize):#rozmnażator według testowego cross
     for i in range(0,eliteSize):
         children.append(matingpool[i])
     
-    for i in range(0, length):#tu musi być już wybór mechanizmu (jakieś ify)
-        child = breedNWOX(pool[i], pool[len(matingpool)-i-1])
-        children.append(child[0])#żeby to zadziałało, c-o musi zwracać dwójkę dzieci
+    for i in range(0, length):
+        if(whichCrossover==1):
+            child = breedNWOX(pool[i], pool[len(matingpool)-i-1])
+        elif(whichCrossover==2):
+            child = breedCX(pool[i], pool[len(matingpool)-i-1])
+        elif(whichCrossover==3):
+            child = breedPMX(pool[i], pool[len(matingpool)-i-1])
+        elif(whichCrossover==4):
+            child = breedUMPX(pool[i], pool[len(matingpool)-i-1])
+        elif(whichCrossover==5):
+            child = breedOX(pool[i], pool[len(matingpool)-i-1])
+        children.append(child[0])
         children.append(child[1])
     return children
 
@@ -262,7 +284,7 @@ def mutateRSM(individual):#individual - osobnik do mutacji
     a=min(rand1, rand2)
     b=max(rand1,rand2)
     while a<b:
-       tmp = individual[a];
+       tmp = individual[a]
        individual[a] = individual[b]
        individual[b] = tmp
        a = a+1
@@ -279,35 +301,35 @@ def mutatePopulation(population, mutationRate): #funkcja mutująca całą popula
     return mutatedPop
 
 
-def nextGeneration(currentGen, eliteSize, mutationRate): #wytworzenie nowej populacji
+def nextGeneration(currentGen, eliteSize, mutationRate,whichCrossover): #wytworzenie nowej populacji
     popRanked = rankRoutes(currentGen)
     selectionResults = selection(popRanked, eliteSize)
     matingpool = matingPool(currentGen, selectionResults)
-    children = breedPopulation(matingpool, eliteSize) #tu trzeba podać, jakiego/jakich crossoverów ma używać
+    children = breedPopulation(matingpool, eliteSize, whichCrossover) 
     nextGeneration = mutatePopulation(children, mutationRate)
     return nextGeneration
 
 
-def geneticAlgorithm(population, popSize, eliteSize, mutationRate, generations):
+def geneticAlgorithm(population, popSize, eliteSize, mutationRate, generations,whichCrossover):
     pop = initialPopulation(popSize, population)
     print("Initial distance: " + str(1 / rankRoutes(pop)[0][1]))
     
-    for i in range(0, generations):#to trzeba wykonać dla wszystkich wybranych opcji; wszystkie opcje muszą mieć tę samą populację początkową
-        pop = nextGeneration(pop, eliteSize, mutationRate)
+    for i in range(0, generations):#założyłam że dla kilku wyborów pętla będzie już w mainie 
+        pop = nextGeneration(pop, eliteSize, mutationRate,whichCrossover)
     
-    print("Final distance for crossover X and mutation Y: " + str(1 / rankRoutes(pop)[0][1]))#to dla wszystkich
+    print("Final distance for crossover"+ whichCrossover+ " and mutation "+mutationRate+": " + str(1 / rankRoutes(pop)[0][1]))#to dla wszystkich
     bestRouteIndex = rankRoutes(pop)[0][0]
     bestRoute = pop[bestRouteIndex]
     return bestRoute
 
 
-def geneticAlgorithmPlot(population, popSize, eliteSize, mutationRate, generations): #pokazuje wykres najlepszej drogi dla danego pokolenia
+def geneticAlgorithmPlot(population, popSize, eliteSize, mutationRate, generations,whichCrossover): #pokazuje wykres najlepszej drogi dla danego pokolenia
     pop = initialPopulation(popSize, population)
     progress = []
     progress.append(1 / rankRoutes(pop)[0][1])
     
     for i in range(0, generations):
-        pop = nextGeneration(pop, eliteSize, mutationRate)
+        pop = nextGeneration(pop, eliteSize, mutationRate,whichCrossover)
         progress.append(1 / rankRoutes(pop)[0][1])
     
     plt.plot(progress)
@@ -321,8 +343,8 @@ def calculate():
     cityList = []
     for i in range(0,25):
         cityList.append(City(x=int(random.random() * 200), y=int(random.random() * 200)))
-    geneticAlgorithm(population=cityList, popSize=50, eliteSize=5, mutationRate=0.01, generations=200)
-    geneticAlgorithmPlot(population=cityList, popSize=100, eliteSize=20, mutationRate=0.01, generations=500)
+    geneticAlgorithm(population=cityList, popSize=50, eliteSize=5, mutationRate=0.01, generations=200,whichCrossover=1)
+    geneticAlgorithmPlot(population=cityList, popSize=100, eliteSize=20, mutationRate=0.01, generations=500,whichCrossover=1)
 
 
 def press(button):
