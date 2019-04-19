@@ -6,16 +6,20 @@ import matplotlib.pyplot as plt
 from appJar import gui
 from threading import Thread
 import time
-
+#from __future__ import division
+import warnings
+#from collections import Sequence
+#from itertools import repeat
 
 class City: #miasto
     def __init__(self, x, y):
         self.x = x
         self.y = y
+        
     
-    def distance(self, city):
-        xDis = abs(self.x - city.x)
-        yDis = abs(self.y - city.y)
+    def distance(self, City):
+        xDis = abs(self.x - City.x)
+        yDis = abs(self.y - City.y)
         distance = np.sqrt((xDis ** 2) + (yDis ** 2))
         return distance
     
@@ -99,147 +103,177 @@ def matingPool(population, selectionResults):# to jest funkcja do ekstrakcji oso
 #Mechanizmy Cross-Over
 
 
-def breedNWOX(parent1, parent2): #metoda poprawiona według artukułu
-    
-    rand1=int(random.random() * len(parent1))
-    rand2 =int(random.random() * len(parent1))
-    a=min(rand1, rand2)
-    b=max(rand1,rand2)
-    
-    child1 = [i for i in range(len(parent1)+b-a)]
-    child2 = [i for i in range(len(parent2)+b-a)]
-    child1[0] = parent1[0]
-    child2[0] = parent2[0]
-    
-    parent1Set = set()#zbiory rodziców z wylosowanego przedziału
-    parent2Set = set()
-    i=a
-    while i<b:
-        parent1Set.add(parent1[i])
-        parent2Set.add(parent2[i])
-        i+=1
+def breedNWOX(ind1, ind2):
+    """Executes a blend crossover that modify in-place the input individuals.
+    The blend crossover expects :term:`sequence` individuals of floating point
+    numbers.
+    :param ind1: The first individual participating in the crossover.
+    :param ind2: The second individual participating in the crossover.
+    :param alpha: Extent of the interval in which the new values can be drawn
+                  for each attribute on both side of the parents' attributes.
+    :returns: A tuple of two individuals.
+    This function uses the :func:`~random.random` function from the python base
+    :mod:`random` module.
+    """
+    alpha=2
+    for i, (x1, x2) in enumerate(zip(ind1, ind2)):
+        gamma = (1. + 2. * alpha) * random.random() - alpha
+        ind1[i] = (1. - gamma) * x1 + gamma * x2
+        ind2[i] = gamma * x1 + (1. - gamma) * x2
 
-    i=a#założenia metody
-    while i<b:
-        if (parent1[i] in parent2Set)!=True: 
-            child1[i] = parent1[i]
+    return ind1, ind2
 
-        if (parent2[i] in parent1Set)!=True:
-            child2[i] = parent2[i]
-        i=i+1
+def breedCX(ind1, ind2):#messy crossover
+    """Executes a one point crossover on :term:`sequence` individual.
+    The crossover will in most cases change the individuals size. The two
+    individuals are modified in place.
+    :param ind1: The first individual participating in the crossover.
+    :param ind2: The second individual participating in the crossover.
+    :returns: A tuple of two individuals.
+    This function uses the :func:`~random.randint` function from the python base
+    :mod:`random` module.
+    """
+    cxpoint1 = random.randint(0, len(ind1))
+    cxpoint2 = random.randint(0, len(ind2))
+    ind1[cxpoint1:], ind2[cxpoint2:] = ind2[cxpoint2:], ind1[cxpoint1:]
 
-    return child1,child2
-
-def breedCX(parent1, parent2):#nietestowane
-    child1 = [i for i in range(len(parent1))]
-    child2 = [i for i in range(len(parent2))]
-    child1[0] = parent1[0]
-    child2[0] = parent2[0]
-    i = 0
-    while parent2[i] not in child1:
-        j = parent1.index(parent2[i])
-        child1[j] = parent1[j]
-        child2[j] = parent2[j]
-        i=j
-
-    for gene in child1:
-        if gene is None :
-            child1[child1.index(gene)] = parent2[child1.index(gene)]
-
-    for gene in child2:
-        if gene is None :
-            child2[child2.index(gene)] = parent1[child2.index(gene)]
-
-    return child1,child2
+    return ind1, ind2
 
 
-def breedPMX(parent1, parent2):
-    child1 = [i for i in range(len(parent1))]
-    child2 = [i for i in range(len(parent2))]
-    child1[0] = parent1[0]
-    child2[0] = parent2[0]
-    position1 = [i+1 for i in range(len(parent1))]
-    position2 = [i+1 for i in range(len(parent2))]
-    geneA = int(random.random() * len(parent1))
-    geneB = int(random.random() * len(parent1))
-    startGene = min(geneA, geneB)
-    endGene = max(geneA, geneB)
-    tmp = 0
+def breedPMX(ind1, ind2):
+    """Executes a partially matched crossover (PMX) on the input individuals.
+    The two individuals are modified in place. This crossover expects
+    :term:`sequence` individuals of indices, the result for any other type of
+    individuals is unpredictable.
+    :param ind1: The first individual participating in the crossover.
+    :param ind2: The second individual participating in the crossover.
+    :returns: A tuple of two individuals.
+    Moreover, this crossover generates two children by matching
+    pairs of values in a certain range of the two parents and swapping the values
+    of those indexes. For more details see [Goldberg1985]_.
+    This function uses the :func:`~random.randint` function from the python base
+    :mod:`random` module.
+    .. [Goldberg1985] Goldberg and Lingel, "Alleles, loci, and the traveling
+       salesman problem", 1985.
+    """
+    size = min(len(ind1), len(ind2))
+    p1, p2 = [0]*size, [0]*size
 
-    for i in range(startGene, endGene):
-        tmp1=child1[i]
-        tmp2=child2[i]
-        child1[i]=tmp2
-        child1[position1[tmp1]]=tmp1
-        child2[i]=tmp2
-        child2[position2[tmp2]]=tmp2
-        tmp = position1[tmp1]
-        position1[tmp1]= position1[tmp2]
-        position1[tmp2]= tmp
-        tmp = position2[tmp1]
-        position2[tmp1]= position2[tmp2]
-        position2[tmp2]= tmp
+    # Initialize the position of each indices in the individuals
+    for i in xrange(size):
+        p1[ind1[i]] = i
+        p2[ind2[i]] = i
+    # Choose crossover points
+    cxpoint1 = random.randint(0, size)
+    cxpoint2 = random.randint(0, size - 1)
+    if cxpoint2 >= cxpoint1:
+        cxpoint2 += 1
+    else: # Swap the two cx points
+        cxpoint1, cxpoint2 = cxpoint2, cxpoint1
 
-    return child1,child2
+    # Apply crossover between cx points
+    for i in xrange(cxpoint1, cxpoint2):
+        # Keep track of the selected values
+        temp1 = ind1[i]
+        temp2 = ind2[i]
+        # Swap the matched value
+        ind1[i], ind1[p1[temp2]] = temp2, temp1
+        ind2[i], ind2[p2[temp1]] = temp1, temp2
+        # Position bookkeeping
+        p1[temp1], p1[temp2] = p1[temp2], p1[temp1]
+        p2[temp1], p2[temp2] = p2[temp2], p2[temp1]
 
-
-def breedUMPX(parent1, parent2):
-    child1 = parent1
-    child2 = parent2
-    position1 = [i+1 for i in range(len(parent1))]
-    position2 = [i+1 for i in range(len(parent2))]
-    geneA = int(random.random() * len(parent1))
-    geneB = int(random.random() * len(parent1))
-    startGene = min(geneA, geneB)
-    endGene = max(geneA, geneB)
-
-    for i in range(len(parent1)):
-        q=random.random()
-        p=0.5 
-        if q>=p:
-            tmp1=child1[i]
-            tmp2=child2[i]
-            child1[i]=tmp2
-            child1[position1[tmp1]]=tmp1
-            child2[i]=tmp2
-            child2[position2[tmp2]]=tmp2
-            position1[tmp1]= position1[tmp2]
-            position1[tmp2]= position1[tmp1]
-            position2[tmp1]= position2[tmp2]
-            position2[tmp2]= position2[tmp1]
-
-    return child1,child2
+    return ind1, ind2
 
 
+def breedUMPX(ind1, ind2):
+    """Executes a uniform partially matched crossover (UPMX) on the input
+    individuals. The two individuals are modified in place. This crossover
+    expects :term:`sequence` individuals of indices, the result for any other
+    type of individuals is unpredictable.
+    :param ind1: The first individual participating in the crossover.
+    :param ind2: The second individual participating in the crossover.
+    :returns: A tuple of two individuals.
+    Moreover, this crossover generates two children by matching
+    pairs of values chosen at random with a probability of *indpb* in the two
+    parents and swapping the values of those indexes. For more details see
+    [Cicirello2000]_.
+    This function uses the :func:`~random.random` and :func:`~random.randint`
+    functions from the python base :mod:`random` module.
+    .. [Cicirello2000] Cicirello and Smith, "Modeling GA performance for
+       control parameter optimization", 2000.
+    """
+    size = min(len(ind1), len(ind2))
+    p1, p2 = [0]*size, [0]*size
 
-def breedOX(parent1, parent2):
-    
-    rand1=int(random.random() * len(parent1))
-    rand2 =int(random.random() * len(parent1))
-    a=min(rand1, rand2)
-    b=max(rand1,rand2)
-    j1=j2=k=b+1
+    # Initialize the position of each indices in the individuals
+    for i in range(size):
+        p1[ind1[i]] = i
+        p2[ind2[i]] = i
 
-    child1 = [i for i in range(len(parent1))]
-    child2 = [i for i in range(len(parent2))]
-    parent1Set = set()
-    parent2Set = set()
-    i=a
-    while i<b:
-        parent1Set.add(parent1[i])
-        parent2Set.add(parent2[i])
-        i+=1
+    for i in range(size):
+        if random.random() < 0.5:
+            # Keep track of the selected values
+            temp1 = ind1[i]
+            temp2 = ind2[i]
+            # Swap the matched value
+            ind1[i], ind1[p1[temp2]] = temp2, temp1
+            ind2[i], ind2[p2[temp1]] = temp1, temp2
+            # Position bookkeeping
+            p1[temp1], p1[temp2] = p1[temp2], p1[temp1]
+            p2[temp1], p2[temp2] = p2[temp2], p2[temp1]
 
-    for i in range(len(parent1)):
-        if (parent1[i] in parent1Set)!=True: 
-            child1[j1] = parent1[k]
-            j1+=1
-        if (parent2[i] in parent2Set)!=True:
-            child2[j2] = parent2[k]
-            j2+=1
-        k+=1
-    
-    return child1,child2
+    return ind1, ind2
+
+
+
+def breedOX(ind1, ind2):
+    """Executes an ordered crossover (OX) on the input
+    individuals. The two individuals are modified in place. This crossover
+    expects :term:`sequence` individuals of indices, the result for any other
+    type of individuals is unpredictable.
+    :param ind1: The first individual participating in the crossover.
+    :param ind2: The second individual participating in the crossover.
+    :returns: A tuple of two individuals.
+    Moreover, this crossover generates holes in the input
+    individuals. A hole is created when an attribute of an individual is
+    between the two crossover points of the other individual. Then it rotates
+    the element so that all holes are between the crossover points and fills
+    them with the removed elements in order. For more details see
+    [Goldberg1989]_.
+    This function uses the :func:`~random.sample` function from the python base
+    :mod:`random` module.
+    .. [Goldberg1989] Goldberg. Genetic algorithms in search,
+       optimization and machine learning. Addison Wesley, 1989
+    """
+    size = min(len(ind1), len(ind2))
+    a, b = random.sample(range(size), 2)
+    if a > b:
+        a, b = b, a
+
+    holes1, holes2 = True*size, True*size
+    for i in range(size):
+        if i < a or i > b:
+            holes1[ind2[i]] = False
+            holes2[ind1[i]] = False
+
+    # We must keep the original values somewhere before scrambling everything
+    temp1, temp2 = ind1, ind2
+    k1 , k2 = b + 1, b + 1
+    for i in range(size):
+        if not holes1[temp1[(i + b + 1) % size]]:
+            ind1[k1 % size] = temp1[(i + b + 1) % size]
+            k1 += 1
+
+        if not holes2[temp2[(i + b + 1) % size]]:
+            ind2[k2 % size] = temp2[(i + b + 1) % size]
+            k2 += 1
+
+    # Swap the content between a and b (included)
+    for i in range(a, b + 1):
+        ind1[i], ind2[i] = ind2[i], ind1[i]
+
+    return ind1, ind2
 
 
 def breedPopulation(matingpool, eliteSize,whichCrossover):#rozmnażator według testowego cross-over
@@ -347,8 +381,8 @@ def calculate():
     cityList = []
     for i in range(0,25):
         cityList.append(City(x=int(random.random() * 200), y=int(random.random() * 200)))
-    geneticAlgorithm(population=cityList, popSize=50, eliteSize=5, mutationRate=0.01, generations=200,whichCrossover=4)
-    geneticAlgorithmPlot(population=cityList, popSize=100, eliteSize=20, mutationRate=0.01, generations=500,whichCrossover=4)
+    geneticAlgorithm(population=cityList, popSize=50, eliteSize=5, mutationRate=0.01, generations=200,whichCrossover=5)
+    geneticAlgorithmPlot(population=cityList, popSize=100, eliteSize=20, mutationRate=0.01, generations=500,whichCrossover=5)
 
 
 def press(button):
