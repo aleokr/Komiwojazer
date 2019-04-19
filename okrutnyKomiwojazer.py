@@ -7,6 +7,7 @@ from appJar import gui
 from threading import Thread
 import time
 
+
 class City: #miasto
     def __init__(self, x, y):
         self.x = x
@@ -107,8 +108,8 @@ def breedNWOX(parent1, parent2): #metoda poprawiona według artukułu
     
     child1 = [i for i in range(len(parent1)+b-a)]
     child2 = [i for i in range(len(parent2)+b-a)]
-    child1[0] =parent1[0]
-    child2[0]=parent2[0]
+    child1[0] = parent1[0]
+    child2[0] = parent2[0]
     
     parent1Set = set()#zbiory rodziców z wylosowanego przedziału
     parent2Set = set()
@@ -142,11 +143,11 @@ def breedCX(parent1, parent2):#nietestowane
         i=j
 
     for gene in child1:
-        if gene == null :
+        if gene is None :
             child1[child1.index(gene)] = parent2[child1.index(gene)]
 
     for gene in child2:
-        if gene == null :
+        if gene is None :
             child2[child2.index(gene)] = parent1[child2.index(gene)]
 
     return child1,child2
@@ -163,6 +164,7 @@ def breedPMX(parent1, parent2):
     geneB = int(random.random() * len(parent1))
     startGene = min(geneA, geneB)
     endGene = max(geneA, geneB)
+    tmp = 0
 
     for i in range(startGene, endGene):
         tmp1=child1[i]
@@ -171,10 +173,12 @@ def breedPMX(parent1, parent2):
         child1[position1[tmp1]]=tmp1
         child2[i]=tmp2
         child2[position2[tmp2]]=tmp2
+        tmp = position1[tmp1]
         position1[tmp1]= position1[tmp2]
-        position1[tmp2]= position1[tmp1]
+        position1[tmp2]= tmp
+        tmp = position2[tmp1]
         position2[tmp1]= position2[tmp2]
-        position2[tmp2]= position2[tmp1]
+        position2[tmp2]= tmp
 
     return child1,child2
 
@@ -190,7 +194,7 @@ def breedUMPX(parent1, parent2):
     endGene = max(geneA, geneB)
 
     for i in range(len(parent1)):
-        q=int(random.random())
+        q=random.random()
         p=0.5 
         if q>=p:
             tmp1=child1[i]
@@ -343,8 +347,8 @@ def calculate():
     cityList = []
     for i in range(0,25):
         cityList.append(City(x=int(random.random() * 200), y=int(random.random() * 200)))
-    geneticAlgorithm(population=cityList, popSize=50, eliteSize=5, mutationRate=0.01, generations=200,whichCrossover=1)
-    geneticAlgorithmPlot(population=cityList, popSize=100, eliteSize=20, mutationRate=0.01, generations=500,whichCrossover=1)
+    geneticAlgorithm(population=cityList, popSize=50, eliteSize=5, mutationRate=0.01, generations=200,whichCrossover=4)
+    geneticAlgorithmPlot(population=cityList, popSize=100, eliteSize=20, mutationRate=0.01, generations=500,whichCrossover=4)
 
 
 def press(button):
