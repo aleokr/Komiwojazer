@@ -91,6 +91,12 @@ def selection(popRanked, eliteSize): #tutaj wybieramy, którym osobnikom pozwoli
                 break
     return selectionResults
 
+def exterminateTheWeakest(population, desiredSize):
+     selectionResults = []
+     for i in range(0, desiredSize): 
+        selectionResults.append(population[i][0])
+     return selectionResults
+
 
 def matingPool(population, selectionResults):# to jest funkcja do ekstrakcji osobników z licencją na rozmnażanie spośród całej populacji
     matingpool = []
@@ -251,21 +257,20 @@ def breedOX(ind1, ind2):
     if a > b:
         a, b = b, a
 
-    holes1, holes2 = True*size, True*size
+    holes1, holes2 = [True]*size, [True]*size
     for i in range(size):
         if i < a or i > b:
-            holes1[ind2[i]] = False
-            holes2[ind1[i]] = False
-
+           holes1[ind2[i]] = False
+           holes2[ind1[i]] = False
     # We must keep the original values somewhere before scrambling everything
     temp1, temp2 = ind1, ind2
     k1 , k2 = b + 1, b + 1
     for i in range(size):
-        if not holes1[temp1[(i + b + 1) % size]]:
+        if not holes1[(i + b + 1) % size]:
             ind1[k1 % size] = temp1[(i + b + 1) % size]
             k1 += 1
 
-        if not holes2[temp2[(i + b + 1) % size]]:
+        if not holes2[(i + b + 1) % size]:
             ind2[k2 % size] = temp2[(i + b + 1) % size]
             k2 += 1
 
@@ -285,7 +290,7 @@ def breedPopulation(matingpool, eliteSize,whichCrossover):#rozmnażator według 
     for i in range(0,eliteSize):
         children.append(matingpool[i])
     
-    for i in range(0, length):
+    for i in range(0, int(length/2)):
         if(whichCrossover==1):
             child = breedNWOX(pool[i], pool[len(matingpool)-i-1])
         elif(whichCrossover==2):
@@ -298,6 +303,7 @@ def breedPopulation(matingpool, eliteSize,whichCrossover):#rozmnażator według 
             child = breedOX(pool[i], pool[len(matingpool)-i-1])
         children.append(child[0])
         children.append(child[1])
+    print(len(children))
     return children
 
 
@@ -339,13 +345,13 @@ def mutatePopulation(population, mutationRate): #funkcja mutująca całą popula
     return mutatedPop
 
 
-def nextGeneration(currentGen, eliteSize, mutationRate,whichCrossover): #wytworzenie nowej populacji
+def nextGeneration(currentGen, eliteSize, mutationRate,whichCrossover,popSize): #wytworzenie nowej populacji
     popRanked = rankRoutes(currentGen)
     selectionResults = selection(popRanked, eliteSize)
     matingpool = matingPool(currentGen, selectionResults)
     children = breedPopulation(matingpool, eliteSize, whichCrossover) 
     nextGeneration = mutatePopulation(children, mutationRate)
-    return nextGeneration
+    return children
 
 
 def geneticAlgorithm(population, popSize, eliteSize, mutationRate, generations,whichCrossover):
@@ -353,9 +359,9 @@ def geneticAlgorithm(population, popSize, eliteSize, mutationRate, generations,w
     print("Initial distance: " + str(1 / rankRoutes(pop)[0][1]))
     
     for i in range(0, generations):#założyłam że dla kilku wyborów pętla będzie już w mainie 
-        pop = nextGeneration(pop, eliteSize, mutationRate,whichCrossover)
+        pop = nextGeneration(pop, eliteSize, mutationRate,whichCrossover, popSize)
     
-    print("Final distance for crossover"+ whichCrossover+ " and mutation "+mutationRate+": " + str(1 / rankRoutes(pop)[0][1]))#to dla wszystkich
+    print("Final distance for crossover"+ str(whichCrossover)+ " and mutation "+str(mutationRate)+": " + str(1 / rankRoutes(pop)[0][1]))#to dla wszystkich
     bestRouteIndex = rankRoutes(pop)[0][0]
     bestRoute = pop[bestRouteIndex]
     return bestRoute
@@ -367,7 +373,7 @@ def geneticAlgorithmPlot(population, popSize, eliteSize, mutationRate, generatio
     progress.append(1 / rankRoutes(pop)[0][1])
     
     for i in range(0, generations):
-        pop = nextGeneration(pop, eliteSize, mutationRate,whichCrossover)
+        pop = nextGeneration(pop, eliteSize, mutationRate,whichCrossover, popSize)
         progress.append(1 / rankRoutes(pop)[0][1])
     
     plt.plot(progress)
@@ -381,8 +387,8 @@ def calculate():
     cityList = []
     for i in range(0,25):
         cityList.append(City(x=int(random.random() * 200), y=int(random.random() * 200)))
-    geneticAlgorithm(population=cityList, popSize=50, eliteSize=5, mutationRate=0.01, generations=200,whichCrossover=5)
-    geneticAlgorithmPlot(population=cityList, popSize=100, eliteSize=20, mutationRate=0.01, generations=500,whichCrossover=5)
+    geneticAlgorithm(population=cityList, popSize=20, eliteSize=4, mutationRate=0.01, generations=100,whichCrossover=5)
+    geneticAlgorithmPlot(population=cityList, popSize=20, eliteSize=4, mutationRate=0.01, generations=100,whichCrossover=5)
 
 
 def press(button):
