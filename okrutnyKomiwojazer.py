@@ -10,11 +10,14 @@ import time
 import warnings
 #from collections import Sequence
 #from itertools import repeat
-
+number_of_city=0
 class City: #miasto
     def __init__(self, x, y):
         self.x = x
         self.y = y
+        global number_of_city 
+        self.index= number_of_city
+        number_of_city=  number_of_city+1
         
     
     def distance(self, City):
@@ -49,7 +52,7 @@ class Fitness: #odwrotność długości całej trasy (dlaczego bierzemy odwrotno
     
     def routeFitness(self):
         if self.fitness == 0:
-            self.fitness = 1 / float(self.routeDistance())
+            self.fitness = 1 /(self.routeDistance()+0.05)
         return self.fitness
 
 
@@ -77,7 +80,7 @@ def initialPopulation(popSize, cityList): #robi całą populację tras (o zadane
 def selection(popRanked, eliteSize): #tutaj wybieramy, którym osobnikom pozwolimy się rozmnażać (według Fitness proportionate selection - im większe Fitness, tym większe prawdopodobieństwo rozrodu)
     selectionResults = []
     df = pd.DataFrame(np.array(popRanked), columns=["Index","Fitness"]) #tworzymy sobie dwuwymiarową tabele
-    df['cum_sum'] = df.Fitness.cumsum() #???
+    df['cum_sum'] = df.Fitness.cumsum() 
     
     df['cum_perc'] = 100*df.cum_sum/df.Fitness.sum()
     
@@ -166,7 +169,7 @@ def breedPMX(ind1, ind2):
     p1, p2 = [0]*size, [0]*size
 
     # Initialize the position of each indices in the individuals
-    for i in xrange(size):
+    for i in range(size):
         p1[ind1[i]] = i
         p2[ind2[i]] = i
     # Choose crossover points
@@ -178,7 +181,7 @@ def breedPMX(ind1, ind2):
         cxpoint1, cxpoint2 = cxpoint2, cxpoint1
 
     # Apply crossover between cx points
-    for i in xrange(cxpoint1, cxpoint2):
+    for i in range(cxpoint1, cxpoint2):
         # Keep track of the selected values
         temp1 = ind1[i]
         temp2 = ind2[i]
@@ -214,8 +217,8 @@ def breedUMPX(ind1, ind2):
 
     # Initialize the position of each indices in the individuals
     for i in range(size):
-        p1[ind1[i]] = i
-        p2[ind2[i]] = i
+        p1[ind1[i].index] = i
+        p2[ind2[i].index] = i
 
     for i in range(size):
         if random.random() < 0.5:
@@ -260,8 +263,8 @@ def breedOX(ind1, ind2):
     holes1, holes2 = [True]*size, [True]*size
     for i in range(size):
         if i < a or i > b:
-           holes1[ind2[i]] = False
-           holes2[ind1[i]] = False
+           holes1[ind2[i].index] = False
+           holes2[ind1[i].index] = False
     # We must keep the original values somewhere before scrambling everything
     temp1, temp2 = ind1, ind2
     k1 , k2 = b + 1, b + 1
@@ -303,7 +306,7 @@ def breedPopulation(matingpool, eliteSize,whichCrossover):#rozmnażator według 
             child = breedOX(pool[i], pool[len(matingpool)-i-1])
         children.append(child[0])
         children.append(child[1])
-    print(len(children))
+    #print(len(children))
     return children
 
 
@@ -421,6 +424,7 @@ def mutationSelected(radioButton):
   
 
 #"main"
+
 CX = False
 PMX = False
 UPMX = False
