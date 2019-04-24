@@ -6,23 +6,19 @@ import matplotlib.pyplot as plt
 from appJar import gui
 from threading import Thread
 import time
-#from __future__ import division
-import warnings
-#from collections import Sequence
-#from itertools import repeat
-number_of_city=0
+import itertools
+import math
+import copy
+import pylab 
+
 class City: #miasto
     def __init__(self, x, y):
         self.x = x
         self.y = y
-        global number_of_city 
-        self.index= number_of_city
-        number_of_city=  number_of_city+1
-        
     
-    def distance(self, City):
-        xDis = abs(self.x - City.x)
-        yDis = abs(self.y - City.y)
+    def distance(self, city):
+        xDis = abs(self.x - city.x)
+        yDis = abs(self.y - city.y)
         distance = np.sqrt((xDis ** 2) + (yDis ** 2))
         return distance
     
@@ -52,7 +48,7 @@ class Fitness: #odwrotność długości całej trasy (dlaczego bierzemy odwrotno
     
     def routeFitness(self):
         if self.fitness == 0:
-            self.fitness = 1 /(self.routeDistance()+0.05)
+            self.fitness = 1 / float(self.routeDistance())
         return self.fitness
 
 
@@ -94,12 +90,6 @@ def selection(popRanked, eliteSize): #tutaj wybieramy, którym osobnikom pozwoli
                 break
     return selectionResults
 
-def exterminateTheWeakest(population, desiredSize):
-     selectionResults = []
-     for i in range(0, desiredSize): 
-        selectionResults.append(population[i][0])
-     return selectionResults
-
 
 def matingPool(population, selectionResults):# to jest funkcja do ekstrakcji osobników z licencją na rozmnażanie spośród całej populacji
     matingpool = []
@@ -109,183 +99,32 @@ def matingPool(population, selectionResults):# to jest funkcja do ekstrakcji oso
     return matingpool
 
 
-#Mechanizmy Cross-Over
+#Mechanizm Cross-Over
 
 
-def breedNWOX(ind1, ind2):
-    """Executes a blend crossover that modify in-place the input individuals.
-    The blend crossover expects :term:`sequence` individuals of floating point
-    numbers.
-    :param ind1: The first individual participating in the crossover.
-    :param ind2: The second individual participating in the crossover.
-    :param alpha: Extent of the interval in which the new values can be drawn
-                  for each attribute on both side of the parents' attributes.
-    :returns: A tuple of two individuals.
-    This function uses the :func:`~random.random` function from the python base
-    :mod:`random` module.
-    """
-    alpha=2
-    for i, (x1, x2) in enumerate(zip(ind1, ind2)):
-        gamma = (1. + 2. * alpha) * random.random() - alpha
-        ind1[i] = (1. - gamma) * x1 + gamma * x2
-        ind2[i] = gamma * x1 + (1. - gamma) * x2
+def breedNWOX(parent1, parent2): 
+    child = []
+    childP1 = []
+    childP2 = []
+    
+    geneA = int(random.random() * len(parent1))
+    geneB = int(random.random() * len(parent1))
+    
+    startGene = min(geneA, geneB)
+    endGene = max(geneA, geneB)
 
-    return ind1, ind2
+    for i in range(startGene, endGene):
+        childP1.append(parent1[i])
+        
+    childP2 = [item for item in parent2 if item not in childP1]
 
-def breedCX(ind1, ind2):#messy crossover
-    """Executes a one point crossover on :term:`sequence` individual.
-    The crossover will in most cases change the individuals size. The two
-    individuals are modified in place.
-    :param ind1: The first individual participating in the crossover.
-    :param ind2: The second individual participating in the crossover.
-    :returns: A tuple of two individuals.
-    This function uses the :func:`~random.randint` function from the python base
-    :mod:`random` module.
-    """
-    cxpoint1 = random.randint(0, len(ind1))
-    cxpoint2 = random.randint(0, len(ind2))
-    ind1[cxpoint1:], ind2[cxpoint2:] = ind2[cxpoint2:], ind1[cxpoint1:]
-
-    return ind1, ind2
-
-
-def breedPMX(ind1, ind2):
-    """Executes a partially matched crossover (PMX) on the input individuals.
-    The two individuals are modified in place. This crossover expects
-    :term:`sequence` individuals of indices, the result for any other type of
-    individuals is unpredictable.
-    :param ind1: The first individual participating in the crossover.
-    :param ind2: The second individual participating in the crossover.
-    :returns: A tuple of two individuals.
-    Moreover, this crossover generates two children by matching
-    pairs of values in a certain range of the two parents and swapping the values
-    of those indexes. For more details see [Goldberg1985]_.
-    This function uses the :func:`~random.randint` function from the python base
-    :mod:`random` module.
-    .. [Goldberg1985] Goldberg and Lingel, "Alleles, loci, and the traveling
-       salesman problem", 1985.
-    """
-    size = min(len(ind1), len(ind2))
-    p1, p2 = [0]*size, [0]*size
-
-    # Initialize the position of each indices in the individuals
-    for i in range(size):
-        p1[ind1[i]] = i
-        p2[ind2[i]] = i
-    # Choose crossover points
-    cxpoint1 = random.randint(0, size)
-    cxpoint2 = random.randint(0, size - 1)
-    if cxpoint2 >= cxpoint1:
-        cxpoint2 += 1
-    else: # Swap the two cx points
-        cxpoint1, cxpoint2 = cxpoint2, cxpoint1
-
-    # Apply crossover between cx points
-    for i in range(cxpoint1, cxpoint2):
-        # Keep track of the selected values
-        temp1 = ind1[i]
-        temp2 = ind2[i]
-        # Swap the matched value
-        ind1[i], ind1[p1[temp2]] = temp2, temp1
-        ind2[i], ind2[p2[temp1]] = temp1, temp2
-        # Position bookkeeping
-        p1[temp1], p1[temp2] = p1[temp2], p1[temp1]
-        p2[temp1], p2[temp2] = p2[temp2], p2[temp1]
-
-    return ind1, ind2
-
-
-def breedUMPX(ind1, ind2):
-    """Executes a uniform partially matched crossover (UPMX) on the input
-    individuals. The two individuals are modified in place. This crossover
-    expects :term:`sequence` individuals of indices, the result for any other
-    type of individuals is unpredictable.
-    :param ind1: The first individual participating in the crossover.
-    :param ind2: The second individual participating in the crossover.
-    :returns: A tuple of two individuals.
-    Moreover, this crossover generates two children by matching
-    pairs of values chosen at random with a probability of *indpb* in the two
-    parents and swapping the values of those indexes. For more details see
-    [Cicirello2000]_.
-    This function uses the :func:`~random.random` and :func:`~random.randint`
-    functions from the python base :mod:`random` module.
-    .. [Cicirello2000] Cicirello and Smith, "Modeling GA performance for
-       control parameter optimization", 2000.
-    """
-    size = min(len(ind1), len(ind2))
-    p1, p2 = [0]*size, [0]*size
-
-    # Initialize the position of each indices in the individuals
-    for i in range(size):
-        p1[ind1[i].index] = i
-        p2[ind2[i].index] = i
-
-    for i in range(size):
-        if random.random() < 0.5:
-            # Keep track of the selected values
-            temp1 = ind1[i]
-            temp2 = ind2[i]
-            # Swap the matched value
-            ind1[i], ind1[p1[temp2]] = temp2, temp1
-            ind2[i], ind2[p2[temp1]] = temp1, temp2
-            # Position bookkeeping
-            p1[temp1], p1[temp2] = p1[temp2], p1[temp1]
-            p2[temp1], p2[temp2] = p2[temp2], p2[temp1]
-
-    return ind1, ind2
+    child = childP1 + childP2
+    return child
 
 
 
-def breedOX(ind1, ind2):
-    """Executes an ordered crossover (OX) on the input
-    individuals. The two individuals are modified in place. This crossover
-    expects :term:`sequence` individuals of indices, the result for any other
-    type of individuals is unpredictable.
-    :param ind1: The first individual participating in the crossover.
-    :param ind2: The second individual participating in the crossover.
-    :returns: A tuple of two individuals.
-    Moreover, this crossover generates holes in the input
-    individuals. A hole is created when an attribute of an individual is
-    between the two crossover points of the other individual. Then it rotates
-    the element so that all holes are between the crossover points and fills
-    them with the removed elements in order. For more details see
-    [Goldberg1989]_.
-    This function uses the :func:`~random.sample` function from the python base
-    :mod:`random` module.
-    .. [Goldberg1989] Goldberg. Genetic algorithms in search,
-       optimization and machine learning. Addison Wesley, 1989
-    """
-    size = min(len(ind1), len(ind2))
-    a, b = random.sample(range(size), 2)
-    if a > b:
-        a, b = b, a
 
-    holes1, holes2 = [True]*size, [True]*size
-    for i in range(size):
-        if i < a or i > b:
-           holes1[ind2[i].index] = False
-           holes2[ind1[i].index] = False
-    # We must keep the original values somewhere before scrambling everything
-    temp1, temp2 = ind1, ind2
-    k1 , k2 = b + 1, b + 1
-    for i in range(size):
-        if not holes1[(i + b + 1) % size]:
-            ind1[k1 % size] = temp1[(i + b + 1) % size]
-            k1 += 1
-
-        if not holes2[(i + b + 1) % size]:
-            ind2[k2 % size] = temp2[(i + b + 1) % size]
-            k2 += 1
-
-    # Swap the content between a and b (included)
-    for i in range(a, b + 1):
-        ind1[i], ind2[i] = ind2[i], ind1[i]
-
-    return ind1, ind2
-
-
-def breedPopulation(matingpool, eliteSize,whichCrossover):#rozmnażator według testowego cross-over
-    #numery crossovery według kolejności: 1-NWOX 2-CX 3-PMX 4-UMPX 5-OX 
+def breedPopulation(matingpool, eliteSize):#rozmnażator według testowego cross-over
     children = []
     length = len(matingpool) - eliteSize
     pool = random.sample(matingpool, len(matingpool))
@@ -293,20 +132,9 @@ def breedPopulation(matingpool, eliteSize,whichCrossover):#rozmnażator według 
     for i in range(0,eliteSize):
         children.append(matingpool[i])
     
-    for i in range(0, int(length/2)):
-        if(whichCrossover==1):
-            child = breedNWOX(pool[i], pool[len(matingpool)-i-1])
-        elif(whichCrossover==2):
-            child = breedCX(pool[i], pool[len(matingpool)-i-1])
-        elif(whichCrossover==3):
-            child = breedPMX(pool[i], pool[len(matingpool)-i-1])
-        elif(whichCrossover==4):
-            child = breedUMPX(pool[i], pool[len(matingpool)-i-1])
-        elif(whichCrossover==5):
-            child = breedOX(pool[i], pool[len(matingpool)-i-1])
-        children.append(child[0])
-        children.append(child[1])
-    #print(len(children))
+    for i in range(0, length):
+        child = breedNWOX(pool[i], pool[len(matingpool)-i-1])
+        children.append(child)
     return children
 
 
@@ -324,19 +152,15 @@ def mutate(individual, mutationRate):#z tutoriala - tutaj polega na randomowej z
             individual[swapWith] = city1
     return individual
 
-
-def mutateRSM(individual):#individual - osobnik do mutacji
-    rand1=int(random.random() * len(individual))
-    rand2 =int(random.random() * len(individual))
+def mutateRSM(parent1, parent2): #zależnie od whichWay odpowiedni crossover 
+    rand1=int(random.random() * len(parent1))
+    rand2 =int(random.random() * len(parent1))
     a=min(rand1, rand2)
     b=max(rand1,rand2)
     while a<b:
-       tmp = individual[a]
-       individual[a] = individual[b]
-       individual[b] = tmp
-       a = a+1
-       b = b-1
-    return individual
+        breedNWOX(parent1, parent2) 
+        a+=1
+        b-=1
 
 
 def mutatePopulation(population, mutationRate): #funkcja mutująca całą populację
@@ -348,50 +172,122 @@ def mutatePopulation(population, mutationRate): #funkcja mutująca całą popula
     return mutatedPop
 
 
-def nextGeneration(currentGen, eliteSize, mutationRate,whichCrossover,popSize): #wytworzenie nowej populacji
+def nextGeneration(currentGen, eliteSize, mutationRate): #wytworzenie nowej populacji
     popRanked = rankRoutes(currentGen)
     selectionResults = selection(popRanked, eliteSize)
     matingpool = matingPool(currentGen, selectionResults)
-    children = breedPopulation(matingpool, eliteSize, whichCrossover) 
+    children = breedPopulation(matingpool, eliteSize)
     nextGeneration = mutatePopulation(children, mutationRate)
-    return children
+    return nextGeneration
 
 
-def geneticAlgorithm(population, popSize, eliteSize, mutationRate, generations,whichCrossover):
+def geneticAlgorithm(population, popSize, eliteSize, mutationRate, generations):
     pop = initialPopulation(popSize, population)
+    geneticList=[]
     print("Initial distance: " + str(1 / rankRoutes(pop)[0][1]))
     
-    for i in range(0, generations):#założyłam że dla kilku wyborów pętla będzie już w mainie 
-        pop = nextGeneration(pop, eliteSize, mutationRate,whichCrossover, popSize)
+    for i in range(0, generations):
+        pop = nextGeneration(pop, eliteSize, mutationRate)
+        geneticList.append(1 / rankRoutes(pop)[0][1])  
     
-    print("Final distance for crossover"+ str(whichCrossover)+ " and mutation "+str(mutationRate)+": " + str(1 / rankRoutes(pop)[0][1]))#to dla wszystkich
+    print("Final distance: " + str(1 / rankRoutes(pop)[0][1]))
     bestRouteIndex = rankRoutes(pop)[0][0]
     bestRoute = pop[bestRouteIndex]
-    return bestRoute
+    
+    return geneticList
 
 
-def geneticAlgorithmPlot(population, popSize, eliteSize, mutationRate, generations,whichCrossover): #pokazuje wykres najlepszej drogi dla danego pokolenia
-    pop = initialPopulation(popSize, population)
+def geneticAlgorithmPlot(listGenetic, results): 
+    global Genetic, Neighbour, Optimal,Graph
     progress = []
-    progress.append(1 / rankRoutes(pop)[0][1])
+    optiProgress = []
+    neighbourProgress = []
+    for i in range(len(listGenetic)):
+        progress.append(listGenetic[i])
+        optiProgress.append(results[0])
+        neighbourProgress.append(results[1])
     
-    for i in range(0, generations):
-        pop = nextGeneration(pop, eliteSize, mutationRate,whichCrossover, popSize)
-        progress.append(1 / rankRoutes(pop)[0][1])
+    if Optimal==True:
+        pylab.plot(optiProgress,label='Optimal Route')
+    if Neighbour==True:
+        pylab.plot(neighbourProgress,label='Nearest neighbour')
+    if Genetic==True:
+        pylab.plot(progress, label='Genetic algorithm')
     
-    plt.plot(progress)
-    plt.ylabel('Distance')
-    plt.xlabel('Generation')
-    plt.show()
+
+    
+    pylab.ylabel('Distance')
+    pylab.xlabel('Generation')
+    pylab.legend(loc='upper right')
+    pylab.title("Cruel Salesman")
+    if Graph==True:
+        pylab.show()
+
+def cost(route):
+    sum = 0
+    route.append(route[0])
+    while len(route) > 1:
+        p0, *route = route
+        sum += math.sqrt((int(p0.x) - int(route[0].x))**2 + (int(p0.y) - int(route[0].y))**2)
+    return sum
+
+def optimalAlgorithm(route):
+    d = float("inf")
+    for p in itertools.permutations(route):
+        c = cost(list(p))
+        if c <= d:
+            d = c
+            pmin = p
+    print("Optimal route:", pmin)
+    print("Length:", d)
+    return d
+
+def closestpoint(point, route):
+    dmin = float("inf")
+    for p in route:
+        d = math.sqrt((int(point.x) - int(p.x))**2 + (int(point.y) - int(p.y))**2)
+        if d < dmin:
+            dmin = d
+            closest = p
+    return closest, dmin
+
+def nearestNeighbour(route):
+    point, *route = route
+    path = [point]
+    sum = 0
+    while len(route) >= 1:
+        closest, dist = closestpoint(path[-1], route)
+        path.append(closest)
+        route.remove(closest)
+        sum += dist
+    closest, dist = closestpoint(path[-1], [point])
+    path.append(closest)
+    sum += dist
+    print("Optimal route:", path)
+    print("Length:", sum)
+    return sum
 
 
 
 def calculate():
+    global Genetic, Neighbour, Optimal,Graph
     cityList = []
-    for i in range(0,25):
+    for i in range(0,9):
         cityList.append(City(x=int(random.random() * 200), y=int(random.random() * 200)))
-    geneticAlgorithm(population=cityList, popSize=20, eliteSize=4, mutationRate=0.01, generations=100,whichCrossover=5)
-    geneticAlgorithmPlot(population=cityList, popSize=20, eliteSize=4, mutationRate=0.01, generations=100,whichCrossover=5)
+    if Optimal==True:
+        optiRoute = optimalAlgorithm(copy.deepcopy(cityList))
+    if Neighbour==True:
+        nearNeig = nearestNeighbour(copy.deepcopy(cityList))
+    if Genetic==True:
+        geneticList=geneticAlgorithm(population=copy.deepcopy(cityList), popSize=50, eliteSize=5, mutationRate=0.01, generations=200)
+    if Graph==True:
+        if Optimal==False:
+            optiRoute=[]
+        if Neighbour==False:
+            nearNeig=[]
+        if Genetic==False:
+            geneticList=[]
+        geneticAlgorithmPlot(geneticList,results=[optiRoute, nearNeig])
 
 
 def press(button):
@@ -399,39 +295,13 @@ def press(button):
         t = Thread(target=calculate)
         t.start()
 
-def crossoverSelected(checkBox):
-    global CX, PMX, UPMX, NWOX, OX
-    if(checkBox == "Cycle crossover"):
-        CX = not CX
-    elif (checkBox == "Partially-Mapped Crossover"):
-        PMX = not PMX
-    elif (checkBox == "Uniform PMX"):
-        UPMX = not UPMX
-    elif (checkBox == "Non-wrapping ordered crossover"):
-        NWOX = not NWOX
-    elif (checkBox == "Ordered crossover"):
-        OX = not OX
 
-
-def mutationSelected(radioButton):
-    global pairMutation, groupMutation
-    if radioButton == "Pair mutation":
-        pairMutation = True
-        groupMutation = False
-    else:
-        pairMutation = False
-        groupMutation = True
-  
 
 #"main"
-
-CX = False
-PMX = False
-UPMX = False
-NWOX = False
-OX = False
-pairMutation = True
-groupMutation = False
+Genetic = True
+Neighbour = False
+Optimal = True
+Graph = False
 
 app = gui()
 
@@ -439,22 +309,14 @@ app.addLabel("title", "Get ready for the Cruel Salesman")
 app.addLabel("Select cross-over algorithms:")
 app.addButton("Run", press)
 
-app.addCheckBox("Cycle crossover")
-app.addCheckBox("Partially-Mapped Crossover")
-app.addCheckBox("Uniform PMX")
-app.addCheckBox("Non-wrapping ordered crossover")
-app.addCheckBox("Ordered crossover")
-app.addLabel("Select mutation mechanism: ")
-app.addRadioButton("mutation", "Pair mutation")
-app.addRadioButton("mutation", "Group mutation")
-app.setRadioButtonChangeFunction("mutation", mutationSelected)
 
-app.setRadioButton("mutation","Pair mutation" )
+app.addCheckBox("Genetic algorithm")
+app.addCheckBox("Optimal Route")
+app.addCheckBox("Nearest Neighbour")
+app.addCheckBox("Draw graph")
 
-app.setCheckBoxChangeFunction("Cycle crossover",crossoverSelected)
-app.setCheckBoxChangeFunction("Partially-Mapped Crossover",crossoverSelected)
-app.setCheckBoxChangeFunction("Uniform PMX",crossoverSelected)
-app.setCheckBoxChangeFunction("Non-wrapping ordered crossover",crossoverSelected)
-app.setCheckBoxChangeFunction("Ordered crossover",crossoverSelected)
+#app.setCheckBoxChangeFunction("Genetic algorithm",crossoverSelected)
+#app.setCheckBoxChangeFunction("Optimal Route",crossoverSelected)
+#app.setCheckBoxChangeFunction("Nearest Neighbour",crossoverSelected))
 
 app.go()
