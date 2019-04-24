@@ -6,6 +6,9 @@ import matplotlib.pyplot as plt
 from appJar import gui
 from threading import Thread
 import time
+import itertools
+import math
+import copy
 
 class City: #miasto
     def __init__(self, x, y):
@@ -118,112 +121,6 @@ def breedNWOX(parent1, parent2): #to jest z tutoriala (chyba NWOX)
     return child
 
 
-def breedCX(parent1, parent2):#nietestowane
-    child1 = []
-    child2 = []
-    child1[0] = parent1[0]
-    child2[0] = parent2[0]
-    i = 0
-    while parent2[i] not in child1:
-        j = parent1.index(parent2[i])
-        child1[j] = parent1[j]
-        child2[j] = parent2[j]
-        i=j
-
-    for gene in child1:
-        if gene == null :
-            child1[child1.index(gene)] = parent2[child1.index(gene)]
-
-    for gene in child2:
-        if gene == null :
-            child2[child2.index(gene)] = parent1[child2.index(gene)]
-
-    return {child1,child2}
-
-
-def breedPMX(parent1, parent2):
-    child1 = []
-    child2 = []
-    child1[0] = parent1[0]
-    child2[0] = parent2[0]
-    position1 = [i+1 for i in range(len(parent1))]
-    position2 = [i+1 for i in range(len(parent2))]
-    geneA = int(random.random() * len(parent1))
-    geneB = int(random.random() * len(parent1))
-    startGene = min(geneA, geneB)
-    endGene = max(geneA, geneB)
-
-    for i in range(startGene, endGene):
-        tmp1=child1[i]
-        tmp2=child2[i]
-        child1[i]=tmp2
-        child1[position1[tmp1]]=tmp1
-        child2[i]=tmp2
-        child2[position2[tmp2]]=tmp2
-        position1[tmp1]= position1[tmp2]
-        position1[tmp2]= position1[tmp1]
-        position2[tmp1]= position2[tmp2]
-        position2[tmp2]= position2[tmp1]
-
-    return {child1,child2}
-
-
-def breedUMPX(parent1, parent2):
-    child1 = parent1
-    child2 = parent2
-    position1 = [i+1 for i in range(len(parent1))]
-    position2 = [i+1 for i in range(len(parent2))]
-    geneA = int(random.random() * len(parent1))
-    geneB = int(random.random() * len(parent1))
-    startGene = min(geneA, geneB)
-    endGene = max(geneA, geneB)
-
-    for i in range(len(parent1)):
-        q=int(random.random())
-        p=0.5 #?????????????????????
-        if q>=p:
-            tmp1=child1[i]
-            tmp2=child2[i]
-            child1[i]=tmp2
-            child1[position1[tmp1]]=tmp1
-            child2[i]=tmp2
-            child2[position2[tmp2]]=tmp2
-            position1[tmp1]= position1[tmp2]
-            position1[tmp2]= position1[tmp1]
-            position2[tmp1]= position2[tmp2]
-            position2[tmp2]= position2[tmp1]
-
-    return {child1,child2}
-
-
-
-def breedOX(parent1, parent2):
-    child1 = []
-    child2 = []
-    rand1=int(random.random() * len(parent1))
-    rand2 =int(random.random() * len(parent1))
-    a=min(rand1, rand2)
-    b=max(rand1,rand2)
-    j1=j2=k=b+1
-
-    parent1Set = set()
-    parent2Set = set()
-    i=a
-    while i<b:
-        parent1Set.add(parent1[i])
-        parent2Set.add(parent2[i])
-        i+=1
-
-    for i in range(len(parent1)):
-        if (parent1[i] in parent1Set)!=True: 
-            child1[j1] = parent1[k]
-            j1+=1
-        if (parent2[i] in parent2Set)!=True:
-            child2[j2] = parent2[k]
-            j2+=1
-        k+=1
-    
-    return{child1,child2}
 
 
 def breedPopulation(matingpool, eliteSize):#rozmnażator według testowego cross-over
@@ -302,50 +199,93 @@ def geneticAlgorithm(population, popSize, eliteSize, mutationRate, generations):
     print("Final distance: " + str(1 / rankRoutes(pop)[0][1]))
     bestRouteIndex = rankRoutes(pop)[0][0]
     bestRoute = pop[bestRouteIndex]
-    return bestRoute
+    return bestRoute#listę pop przekazywać do poniższej funkcji plotującej, żeby nie robił dwa razy ttego samego
 
 
-def geneticAlgorithmPlot(population, popSize, eliteSize, mutationRate, generations): #pokazuje wykres najlepszej drogi dla danego pokolenia
+def geneticAlgorithmPlot(population, popSize, eliteSize, mutationRate, generations, results): #pokazuje wykres najlepszej drogi dla danego pokolenia
     pop = initialPopulation(popSize, population)
+
     progress = []
+    optiProgress = []
+    neighbourProgress = []
     progress.append(1 / rankRoutes(pop)[0][1])
     
     for i in range(0, generations):
         pop = nextGeneration(pop, eliteSize, mutationRate)
         progress.append(1 / rankRoutes(pop)[0][1])
+        optiProgress.append(results[0])
+        neighbourProgress.append(results[1])
     
     plt.plot(progress)
+    plt.plot(neighbourProgress)
+    plt.plot(optiProgress)
     plt.ylabel('Distance')
     plt.xlabel('Generation')
     plt.show()
+
+def cost(route):
+    sum = 0
+    # Go back to the start when done.
+    route.append(route[0])
+    while len(route) > 1:
+        p0, *route = route
+        sum += math.sqrt((int(p0.x) - int(route[0].x))**2 + (int(p0.y) - int(route[0].y))**2)
+    return sum
+
+def optimalAlgorithm(route):
+    d = float("inf")
+    for p in itertools.permutations(route):
+        c = cost(list(p))
+        #c = Fitness.routeDistance(list(p))
+        if c <= d:
+            d = c
+            pmin = p
+    print("Optimal route:", pmin)
+    print("Length:", d)
+    return d
+
+def closestpoint(point, route):
+    dmin = float("inf")
+    for p in route:
+        d = math.sqrt((int(point.x) - int(p.x))**2 + (int(point.y) - int(p.y))**2)
+        if d < dmin:
+            dmin = d
+            closest = p
+    return closest, dmin
+
+def nearestNeighbour(route):
+    point, *route = route
+    path = [point]
+    sum = 0
+    while len(route) >= 1:
+        closest, dist = closestpoint(path[-1], route)
+        path.append(closest)
+        route.remove(closest)
+        sum += dist
+    # Go back the the beginning when done.
+    closest, dist = closestpoint(path[-1], [point])
+    path.append(closest)
+    sum += dist
+    print("Optimal route:", path)
+    print("Length:", sum)
+    return sum
 
 
 
 def calculate():
     cityList = []
-    for i in range(0,25):
+    for i in range(0,9):
         cityList.append(City(x=int(random.random() * 200), y=int(random.random() * 200)))
-    geneticAlgorithm(population=cityList, popSize=50, eliteSize=5, mutationRate=0.01, generations=200)
-    geneticAlgorithmPlot(population=cityList, popSize=100, eliteSize=20, mutationRate=0.01, generations=500)
+    optiRoute = optimalAlgorithm(copy.deepcopy(cityList))
+    nearNeig = nearestNeighbour(copy.deepcopy(cityList))
+    geneticAlgorithm(population=copy.deepcopy(cityList), popSize=50, eliteSize=5, mutationRate=0.01, generations=200)
+    geneticAlgorithmPlot(population=copy.deepcopy(cityList), popSize=100, eliteSize=20, mutationRate=0.01, generations=500, results=[optiRoute, nearNeig])
 
 
 def press(button):
     if button == "Run":
         t = Thread(target=calculate)
         t.start()
-
-def crossoverSelected(checkBox):
-    global CX, PMX, UPMX, NWOX, OX
-    if(checkBox == "Cycle crossover"):
-        CX = not CX
-    elif (checkBox == "Partially-Mapped Crossover"):
-        PMX = not PMX
-    elif (checkBox == "Uniform PMX"):
-        UPMX = not UPMX
-    elif (checkBox == "Non-wrapping ordered crossover"):
-        NWOX = not NWOX
-    elif (checkBox == "Ordered crossover"):
-        OX = not OX
 
 
 def mutationSelected(radioButton):
@@ -385,10 +325,10 @@ app.setRadioButtonChangeFunction("mutation", mutationSelected)
 
 app.setRadioButton("mutation","Pair mutation" )
 
-app.setCheckBoxChangeFunction("Cycle crossover",crossoverSelected)
-app.setCheckBoxChangeFunction("Partially-Mapped Crossover",crossoverSelected)
-app.setCheckBoxChangeFunction("Uniform PMX",crossoverSelected)
-app.setCheckBoxChangeFunction("Non-wrapping ordered crossover",crossoverSelected)
-app.setCheckBoxChangeFunction("Ordered crossover",crossoverSelected)
+#app.setCheckBoxChangeFunction("Cycle crossover",crossoverSelected)
+#app.setCheckBoxChangeFunction("Partially-Mapped Crossover",crossoverSelected)
+#app.setCheckBoxChangeFunction("Uniform PMX",crossoverSelected)
+#app.setCheckBoxChangeFunction("Non-wrapping ordered crossover",crossoverSelected)
+#app.setCheckBoxChangeFunction("Ordered crossover",crossoverSelected)
 
 app.go()
